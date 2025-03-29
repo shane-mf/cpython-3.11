@@ -63,11 +63,11 @@ Lib/site-packages/*
 Lib/test/data/*
 !Lib/test/data/README
 /_bootstrap_python
-/Makefile
-/Makefile.pre
-Mac/Makefile
+#/Makefile
+#/Makefile.pre
+#Mac/Makefile
 Mac/PythonLauncher/Info.plist
-Mac/PythonLauncher/Makefile
+#Mac/PythonLauncher/Makefile
 Mac/PythonLauncher/Python Launcher
 Mac/PythonLauncher/Python Launcher.app/*
 Mac/Resources/app/Info.plist

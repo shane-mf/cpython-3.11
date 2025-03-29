@@ -12,6 +12,7 @@ wmain(int argc, wchar_t **argv)
 int
 main(int argc, char **argv)
 {
+    printf("Hello, Mf!\n");
     return Py_BytesMain(argc, argv);
 }
 #endif
