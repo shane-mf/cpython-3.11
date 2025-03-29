@@ -312,9 +312,7 @@ MODULE_NIS_LDFLAGS=
 MODULE__SQLITE3_STATE=yes
 MODULE__SQLITE3_CFLAGS= -I$(srcdir)/Modules/_sqlite
 MODULE__SQLITE3_LDFLAGS=-lsqlite3
-MODULE__TKINTER_STATE=yes
-MODULE__TKINTER_CFLAGS=-I/opt/homebrew/Cellar/tcl-tk/9.0.1/include/tcl-tk -DTCL_WITH_EXTERNAL_TOMMATH -I/opt/homebrew/Cellar/libtommath/1.3.0/include -Wno-strict-prototypes -DWITH_APPINIT=1
-MODULE__TKINTER_LDFLAGS=-L/opt/homebrew/Cellar/tcl-tk/9.0.1/lib -ltcl9tk9.0 -ltkstub -ltcl9.0 -ltclstub
+MODULE__TKINTER_STATE=n/a
 MODULE__UUID_STATE=yes
 MODULE__UUID_CFLAGS=
 MODULE__UUID_LDFLAGS=
