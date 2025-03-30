@@ -9,12 +9,13 @@ __all__ = ["BlockingIOError", "open", "open_code", "IOBase", "RawIOBase",
            "UnsupportedOperation", "SEEK_SET", "SEEK_CUR", "SEEK_END",
            "DEFAULT_BUFFER_SIZE", "text_encoding", "IncrementalNewlineDecoder"]
 
-import abc
-import _pyio as _io
 from _pyio import (DEFAULT_BUFFER_SIZE, BlockingIOError, UnsupportedOperation,
                    open, open_code, FileIO, BytesIO, StringIO, BufferedReader,
                    BufferedWriter, BufferedRWPair, BufferedRandom,
-                   IncrementalNewlineDecoder, text_encoding, TextIOWrapper)
+                   IncrementalNewlineDecoder, text_encoding, TextIOWrapper,
+                   IOBase, RawIOBase, BufferedIOBase, TextIOBase, SEEK_SET, SEEK_CUR, SEEK_END
+                   )
+
 
 def __getattr__(name):
     if name == "OpenWrapper":
@@ -34,44 +35,3 @@ def __getattr__(name):
 
 # Pretend this exception was created here.
 UnsupportedOperation.__module__ = "io"
-
-# for seek()
-SEEK_SET = 0
-SEEK_CUR = 1
-SEEK_END = 2
-
-# Declaring ABCs in C is tricky so we do it here.
-# Method descriptions and default implementations are inherited from the C
-# version however.
-class IOBase(_io.IOBase, metaclass=abc.ABCMeta):
-    __doc__ = _io.IOBase.__doc__
-
-class RawIOBase(_io.RawIOBase, IOBase):
-    __doc__ = _io.RawIOBase.__doc__
-
-class BufferedIOBase(_io.BufferedIOBase, IOBase):
-    __doc__ = _io.BufferedIOBase.__doc__
-
-class TextIOBase(_io.TextIOBase, IOBase):
-    __doc__ = _io.TextIOBase.__doc__
-
-RawIOBase.register(FileIO)
-
-for klass in (BytesIO, BufferedReader, BufferedWriter, BufferedRandom,
-              BufferedRWPair):
-    BufferedIOBase.register(klass)
-
-for klass in (StringIO, TextIOWrapper):
-    TextIOBase.register(klass)
-del klass
-
-# _WindowsConsoleIO is only in the C implementation, not in _pyio
-# So we don't try to import it when using _pyio
-"""
-try:
-    from _io import _WindowsConsoleIO
-except ImportError:
-    pass
-else:
-    RawIOBase.register(_WindowsConsoleIO)
-"""
