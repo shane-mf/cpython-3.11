@@ -1,5 +1,5 @@
 from contextlib import suppress
-from io import TextIOWrapper
+from io_c import TextIOWrapper
 
 from . import abc
 

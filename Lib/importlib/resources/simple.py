@@ -3,7 +3,7 @@ Interface adapters for low-level readers.
 """
 
 import abc
-import io
+import io_c
 import itertools
 from typing import BinaryIO, List
 
@@ -69,7 +69,7 @@ class ResourceHandle(Traversable):
     def open(self, mode='r', *args, **kwargs):
         stream = self.parent.reader.open_binary(self.name)
         if 'b' not in mode:
-            stream = io.TextIOWrapper(stream, *args, **kwargs)
+            stream = io_c.TextIOWrapper(stream, *args, **kwargs)
         return stream
 
     def joinpath(self, name):

@@ -15,6 +15,7 @@ import re
 import time
 import types
 from typing import Dict, FrozenSet, TextIO, Tuple
+import io_c
 
 import umarshal
 from generate_global_objects import get_identifiers_and_strings
@@ -461,7 +462,7 @@ def generate(args: list[str], output: TextIO) -> None:
     printer = Printer(output)
     for arg in args:
         file, modname = arg.rsplit(':', 1)
-        with open(file, "r", encoding="utf8") as fd:
+        with io_c.open(file, "r", encoding="utf8") as fd:
             source = fd.read()
             if is_frozen_header(source):
                 code = decode_frozen_data(source)
@@ -501,7 +502,7 @@ def main() -> None:
     args = parser.parse_args()
     verbose = args.verbose
     output = args.output
-    with open(output, "w", encoding="utf-8") as file:
+    with io_c.open(output, "w", encoding="utf-8") as file:
         with report_time("generate"):
             generate(args.args, file)
     if verbose:
