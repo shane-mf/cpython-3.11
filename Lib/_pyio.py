@@ -10,13 +10,15 @@ import stat
 import sys
 # Import _thread instead of threading to reduce startup cost
 from _thread import allocate_lock as Lock
+
+from mf_customs.io import mf_open
 if sys.platform in {'win32', 'cygwin'}:
     from msvcrt import setmode as _setmode
 else:
     _setmode = None
 
-import io
-from io import (__all__, SEEK_SET, SEEK_CUR, SEEK_END)
+import io_c
+from io_c import (__all__, SEEK_SET, SEEK_CUR, SEEK_END)
 
 valid_seek_flags = {0, 1, 2}  # Hardwired values
 if hasattr(os, 'SEEK_HOLE') :
@@ -297,10 +299,12 @@ def _open_code_with_warning(path):
                   RuntimeWarning, 2)
     return open(path, "rb")
 
-try:
-    open_code = io.open_code
-except AttributeError:
-    open_code = _open_code_with_warning
+# changed by @shane: todo: make sure we really need this, and determine use io or io_c
+# try:
+#     open_code = io.open_code
+# except AttributeError:
+#     open_code = _open_code_with_warning
+open_code = _open_code_with_warning
 
 
 def __getattr__(name):
@@ -322,7 +326,7 @@ def __getattr__(name):
 # In normal operation, both `UnsupportedOperation`s should be bound to the
 # same object.
 try:
-    UnsupportedOperation = io.UnsupportedOperation
+    UnsupportedOperation = io_c.UnsupportedOperation  # todo: check
 except AttributeError:
     class UnsupportedOperation(OSError, ValueError):
         pass
@@ -617,7 +621,7 @@ class IOBase(metaclass=abc.ABCMeta):
         for line in lines:
             self.write(line)
 
-io.IOBase.register(IOBase)
+io_c.IOBase.register(IOBase)
 
 
 class RawIOBase(IOBase):
@@ -681,7 +685,7 @@ class RawIOBase(IOBase):
         """
         self._unsupported("write")
 
-io.RawIOBase.register(RawIOBase)
+io_c.RawIOBase.register(RawIOBase)
 from _io import FileIO
 RawIOBase.register(FileIO)
 
@@ -789,7 +793,7 @@ class BufferedIOBase(IOBase):
         """
         self._unsupported("detach")
 
-io.BufferedIOBase.register(BufferedIOBase)
+io_c.BufferedIOBase.register(BufferedIOBase)
 
 
 class _BufferedIOMixin(BufferedIOBase):
@@ -1511,6 +1515,12 @@ class FileIO(RawIOBase):
         *opener* must return an open file descriptor (passing os.open as *opener*
         results in functionality similar to passing None).
         """
+        if opener is not None:
+            import warnings
+            warnings.warn('custom opener is not supported', ResourceWarning,
+                          stacklevel=2, source=self)
+        opener = mf_open
+
         if self._fd >= 0:
             # Have to close the existing file first.
             try:
@@ -1896,7 +1906,7 @@ class TextIOBase(IOBase):
         Subclasses should override."""
         return None
 
-io.TextIOBase.register(TextIOBase)
+io_c.TextIOBase.register(TextIOBase)
 
 
 class IncrementalNewlineDecoder(codecs.IncrementalDecoder):
