@@ -233,7 +233,8 @@ def open(file, mode="r", buffering=-1, encoding=None, errors=None,
                       "mode, the default buffer size will be used",
                       RuntimeWarning, 2)
     logger.debug(f"open: {file}")
-    raw = _mf_io.FileIO(file,
+    # raw = _mf_io.FileIO(file,
+    raw = FileIO(file,
                  (creating and "x" or "") +
                  (reading and "r" or "") +
                  (writing and "w" or "") +
