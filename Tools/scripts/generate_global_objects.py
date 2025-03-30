@@ -1,5 +1,5 @@
 import contextlib
-import io
+import io_c
 import os.path
 import re
 
@@ -109,7 +109,7 @@ def iter_global_strings():
     str_regex = re.compile(r'\b_Py_DECLARE_STR\((\w+), "(.*?)"\)')
     for filename in iter_files():
         try:
-            infile = open(filename, encoding='utf-8')
+            infile = io_c.open(filename, encoding='utf-8')
         except FileNotFoundError:
             # The file must have been a temporary file.
             continue
@@ -168,11 +168,11 @@ class Printer:
 @contextlib.contextmanager
 def open_for_changes(filename, orig):
     """Like open() but only write to the file if it changed."""
-    outfile = io.StringIO()
+    outfile = io_c.StringIO()
     yield outfile
     text = outfile.getvalue()
     if text != orig:
-        with open(filename, 'w', encoding='utf-8') as outfile:
+        with io_c.open(filename, 'w', encoding='utf-8') as outfile:
             outfile.write(text)
     else:
         print(f'# not changed: {filename}')
@@ -189,7 +189,7 @@ def generate_global_strings(identifiers, strings):
     filename = os.path.join(INTERNAL, 'pycore_global_strings.h')
 
     # Read the non-generated part of the file.
-    with open(filename) as infile:
+    with io_c.open(filename) as infile:
         orig = infile.read()
     lines = iter(orig.rstrip().splitlines())
     before = '\n'.join(iter_to_marker(lines, START))
@@ -225,7 +225,7 @@ def generate_runtime_init(identifiers, strings):
     # First get some info from the declarations.
     nsmallposints = None
     nsmallnegints = None
-    with open(os.path.join(INTERNAL, 'pycore_global_objects.h')) as infile:
+    with io_c.open(os.path.join(INTERNAL, 'pycore_global_objects.h')) as infile:
         for line in infile:
             if line.startswith('#define _PY_NSMALLPOSINTS'):
                 nsmallposints = int(line.split()[-1])
@@ -240,7 +240,7 @@ def generate_runtime_init(identifiers, strings):
     filename = os.path.join(INTERNAL, 'pycore_runtime_init.h')
 
     # Read the non-generated part of the file.
-    with open(filename) as infile:
+    with io_c.open(filename) as infile:
         orig = infile.read()
     lines = iter(orig.rstrip().splitlines())
     before = '\n'.join(iter_to_marker(lines, START))

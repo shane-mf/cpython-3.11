@@ -11,6 +11,7 @@ import sys
 # Import _thread instead of threading to reduce startup cost
 from _thread import allocate_lock as Lock
 
+from mf_customs import logger
 from mf_customs.io import mf_open
 if sys.platform in {'win32', 'cygwin'}:
     from msvcrt import setmode as _setmode
@@ -276,6 +277,13 @@ def open(file, mode="r", buffering=-1, encoding=None, errors=None,
         text = TextIOWrapper(buffer, encoding, errors, newline, line_buffering)
         result = text
         text.mode = mode
+
+        logger.debug(f"open {file}")
+        import traceback
+        logger.debug("Call stack:")
+        for frame in traceback.extract_stack():
+            logger.debug(f"  File \"{frame.filename}\", line {frame.lineno}, in {frame.name}")
+
         return result
     except:
         result.close()
