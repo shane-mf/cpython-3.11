@@ -5,3 +5,9 @@ def debug(message):
     for frame in traceback.extract_stack():
         print(f"  File \"{frame.filename}\", line {frame.lineno}, in {frame.name}")
 
+def error(message):
+    print(f"ERROR-MF: {message}")
+    import traceback
+    print("Call stack:")
+    for frame in traceback.extract_stack():
+        print(f"  File \"{frame.filename}\", line {frame.lineno}, in {frame.name}")

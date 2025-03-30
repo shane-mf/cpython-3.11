@@ -1,20 +1,82 @@
 import os
-from _pyio import RawIOBase
+import stat
+import errno
+from _pyio_base import RawIOBase, DEFAULT_BUFFER_SIZE, UnsupportedOperation
 from mf_customs import logger
+from io_c import (__all__, SEEK_SET, SEEK_CUR, SEEK_END)
 
+class _FileInfo:
+    path: str
+    fd: int
+    inheritable: bool
+    st_mode: int
+    st_size: int
+    pos: int
+    st_data: bytes
 
-# todo: do not mock in here, mock in the FileIO?
-def mf_opener(file, flags):
-    logger.debug(f"mf_open: {file}, {flags}")
+    def __init__(self, path: str, fd: int, inheritable: bool, st_mode: int):
+        self.path = path
+        self.fd = fd
+        self.inheritable = inheritable
+        self.st_mode = st_mode
+        self.pos = 0
+        self.st_data = b'hello,mf:virtual-fs.abcdefghijklmnopqrstuvwxyzhahaen.'
+        self.st_size = len(self.st_data)
 
-    #
-    # import traceback
-    # print("Call stack:")
-    # for frame in traceback.extract_stack():
-    #     print(f"  File \"{frame.filename}\", line {frame.lineno}, in {frame.name}")
+_cur_fd = 0
+_path_to_fd_map: dict[str, int] = {}
+_fd_to_file_info_map: dict[int, _FileInfo] = {}
 
-    return os.open(file, flags)
-    # return os.open(file, flags)
+def mf_opener(path: str, flags: int, mode: int):
+    global _cur_fd
+    if path not in _path_to_fd_map:
+        _cur_fd += 1
+        _path_to_fd_map[path] = _cur_fd
+        _fd_to_file_info_map[_cur_fd] = _FileInfo(path, _cur_fd, True, stat.S_IFREG)
+    else:
+        _cur_fd = _path_to_fd_map[path]
+
+    logger.debug(f"mf_opener: {path}, {flags}: {_cur_fd}")
+    return _cur_fd
+
+def mf_close(fd: int):
+    del _fd_to_file_info_map[fd]
+
+def mf_set_inheritable(fd: int, inheritable: bool):
+    logger.debug(f"TODO: set_inheritable: {fd}, {inheritable}")
+
+def mf_fstat(fd: int):
+    logger.debug(f"TODO: fstat: {fd}")
+    return _fd_to_file_info_map[fd]
+
+def mf_lseek(fd: int, pos: int, whence: int) -> int:
+    file_info = _fd_to_file_info_map[fd]
+    if whence == SEEK_SET:
+        file_info.pos = pos
+    elif whence == SEEK_CUR:
+        file_info.pos += pos
+    elif whence == SEEK_END:
+        file_info.pos = file_info.st_size + pos
+    return file_info.pos
+
+def mf_read(fd: int, size: int):
+    file_info = _fd_to_file_info_map[fd]
+    if file_info.pos + size > file_info.st_size:
+        size = file_info.st_size - file_info.pos
+    data = file_info.st_data[file_info.pos:file_info.pos + size]
+    file_info.pos += size
+    return data
+
+def mf_write(fd: int, data: bytes):
+    file_info = _fd_to_file_info_map[fd]
+    file_info.st_data += data
+    file_info.st_size = len(file_info.st_data)
+    return len(data)
+
+def mf_ftruncate(fd: int, size: int):
+    file_info = _fd_to_file_info_map[fd]
+    file_info.st_data = file_info.st_data[:size]
+    file_info.st_size = size
 
 class FileIO(RawIOBase):
     _fd = -1
@@ -26,31 +88,18 @@ class FileIO(RawIOBase):
     _closefd = True
 
     def __init__(self, file, mode='r', closefd=True, opener=None):
-        """Open a file.  The mode can be 'r' (default), 'w', 'x' or 'a' for reading,
-        writing, exclusive creation or appending.  The file will be created if it
-        doesn't exist when opened for writing or appending; it will be truncated
-        when opened for writing.  A FileExistsError will be raised if it already
-        exists when opened for creating. Opening a file for creating implies
-        writing so this mode behaves in a similar way to 'w'. Add a '+' to the mode
-        to allow simultaneous reading and writing. A custom opener can be used by
-        passing a callable as *opener*. The underlying file descriptor for the file
-        object is then obtained by calling opener with (*name*, *flags*).
-        *opener* must return an open file descriptor (passing os.open as *opener*
-        results in functionality similar to passing None).
-        """
         if opener is not None:
             import warnings
             warnings.warn('custom opener is not supported', ResourceWarning,
                           stacklevel=2, source=self)
-        opener = mf_opener
 
         if self._fd >= 0:
-            # Have to close the existing file first.
             try:
                 if self._closefd:
-                    os.close(self._fd)
+                    mf_close(self._fd)
             finally:
                 self._fd = -1
+            self._fd = -1
 
         if isinstance(file, float):
             raise TypeError('integer argument expected, got float')
@@ -106,20 +155,13 @@ class FileIO(RawIOBase):
             if fd < 0:
                 if not closefd:
                     raise ValueError('Cannot use closefd=False with file name')
-                if opener is None:
-                    fd = os.open(file, flags, 0o666)
-                else:
-                    fd = opener(file, flags)
-                    if not isinstance(fd, int):
-                        raise TypeError('expected integer from opener')
-                    if fd < 0:
-                        raise OSError('Negative file descriptor')
+                fd = mf_opener(file, flags, 0o666)
                 owned_fd = fd
                 if not noinherit_flag:
-                    os.set_inheritable(fd, False)
+                    mf_set_inheritable(fd, False)
 
             self._closefd = closefd
-            fdfstat = os.fstat(fd)
+            fdfstat = mf_fstat(fd)
             try:
                 if stat.S_ISDIR(fdfstat.st_mode):
                     raise IsADirectoryError(errno.EISDIR,
@@ -128,13 +170,15 @@ class FileIO(RawIOBase):
                 # Ignore the AttributeError if stat.S_ISDIR or errno.EISDIR
                 # don't exist.
                 pass
-            self._blksize = getattr(fdfstat, 'st_blksize', 0)
-            if self._blksize <= 1:
-                self._blksize = DEFAULT_BUFFER_SIZE
+            # self._blksize = getattr(fdfstat, 'st_blksize', 0)
+            # if self._blksize <= 1:
+            #     self._blksize = DEFAULT_BUFFER_SIZE
+            self._blksize = DEFAULT_BUFFER_SIZE
 
-            if _setmode:
-                # don't translate newlines (\r\n <=> \n)
-                _setmode(fd, os.O_BINARY)
+            # by @mf: ignore (this is for win32, cygwin)
+            # if _setmode:
+            #     # don't translate newlines (\r\n <=> \n)
+            #     _setmode(fd, os.O_BINARY)
 
             self.name = file
             if self._appending:
@@ -142,13 +186,13 @@ class FileIO(RawIOBase):
                 # end of file (otherwise, it might be done only on the
                 # first write()).
                 try:
-                    os.lseek(fd, 0, SEEK_END)
+                    mf_lseek(fd, 0, SEEK_END)
                 except OSError as e:
                     if e.errno != errno.ESPIPE:
                         raise
         except:
             if owned_fd is not None:
-                os.close(owned_fd)
+                mf_close(owned_fd)
             raise
         self._fd = fd
 
@@ -185,33 +229,22 @@ class FileIO(RawIOBase):
             raise UnsupportedOperation('File not open for writing')
 
     def read(self, size=None):
-        """Read at most size bytes, returned as bytes.
-
-        Only makes one system call, so less data may be returned than requested
-        In non-blocking mode, returns None if no data is available.
-        Return an empty bytes object at EOF.
-        """
         self._checkClosed()
         self._checkReadable()
         if size is None or size < 0:
             return self.readall()
         try:
-            return os.read(self._fd, size)
+            return mf_read(self._fd, size)
         except BlockingIOError:
             return None
 
     def readall(self):
-        """Read all data from the file, returned as bytes.
-
-        In non-blocking mode, returns as much as is immediately available,
-        or None if no data is available.  Return an empty bytes object at EOF.
-        """
         self._checkClosed()
         self._checkReadable()
         bufsize = DEFAULT_BUFFER_SIZE
         try:
-            pos = os.lseek(self._fd, 0, SEEK_CUR)
-            end = os.fstat(self._fd).st_size
+            pos = mf_lseek(self._fd, 0, SEEK_CUR)
+            end = mf_fstat(self._fd).st_size
             if end >= pos:
                 bufsize = end - pos + 1
         except OSError:
@@ -224,7 +257,7 @@ class FileIO(RawIOBase):
                 bufsize += max(bufsize, DEFAULT_BUFFER_SIZE)
             n = bufsize - len(result)
             try:
-                chunk = os.read(self._fd, n)
+                chunk = mf_read(self._fd, n)
             except BlockingIOError:
                 if result:
                     break
@@ -236,7 +269,6 @@ class FileIO(RawIOBase):
         return bytes(result)
 
     def readinto(self, b):
-        """Same as RawIOBase.readinto()."""
         m = memoryview(b).cast('B')
         data = self.read(len(m))
         n = len(data)
@@ -244,108 +276,65 @@ class FileIO(RawIOBase):
         return n
 
     def write(self, b):
-        """Write bytes b to file, return number written.
-
-        Only makes one system call, so not all of the data may be written.
-        The number of bytes actually written is returned.  In non-blocking mode,
-        returns None if the write would block.
-        """
         self._checkClosed()
         self._checkWritable()
         try:
-            return os.write(self._fd, b)
+            return mf_write(self._fd, b)
         except BlockingIOError:
             return None
 
     def seek(self, pos, whence=SEEK_SET):
-        """Move to new file position.
-
-        Argument offset is a byte count.  Optional argument whence defaults to
-        SEEK_SET or 0 (offset from start of file, offset should be >= 0); other values
-        are SEEK_CUR or 1 (move relative to current position, positive or negative),
-        and SEEK_END or 2 (move relative to end of file, usually negative, although
-        many platforms allow seeking beyond the end of a file).
-
-        Note that not all file objects are seekable.
-        """
         if isinstance(pos, float):
             raise TypeError('an integer is required')
         self._checkClosed()
-        return os.lseek(self._fd, pos, whence)
+        return mf_lseek(self._fd, pos, whence)
 
     def tell(self):
-        """tell() -> int.  Current file position.
-
-        Can raise OSError for non seekable files."""
         self._checkClosed()
-        return os.lseek(self._fd, 0, SEEK_CUR)
+        return mf_lseek(self._fd, 0, SEEK_CUR)
 
     def truncate(self, size=None):
-        """Truncate the file to at most size bytes.
-
-        Size defaults to the current file position, as returned by tell().
-        The current file position is changed to the value of size.
-        """
         self._checkClosed()
         self._checkWritable()
         if size is None:
             size = self.tell()
-        os.ftruncate(self._fd, size)
+        mf_ftruncate(self._fd, size)
         return size
 
     def close(self):
-        """Close the file.
-
-        A closed file cannot be used for further I/O operations.  close() may be
-        called more than once without error.
-        """
         if not self.closed:
             try:
                 if self._closefd:
-                    os.close(self._fd)
+                    mf_close(self._fd)
             finally:
                 super().close()
 
     def seekable(self):
-        """True if file supports random-access."""
         self._checkClosed()
-        if self._seekable is None:
-            try:
-                self.tell()
-            except OSError:
-                self._seekable = False
-            else:
-                self._seekable = True
-        return self._seekable
+        return True
 
     def readable(self):
-        """True if file was opened in a read mode."""
         self._checkClosed()
         return self._readable
 
     def writable(self):
-        """True if file was opened in a write mode."""
         self._checkClosed()
         return self._writable
 
     def fileno(self):
-        """Return the underlying file descriptor (an integer)."""
         self._checkClosed()
         return self._fd
 
     def isatty(self):
-        """True if the file is connected to a TTY device."""
         self._checkClosed()
-        return os.isatty(self._fd)
+        return False  # todo: implement
 
     @property
     def closefd(self):
-        """True if the file descriptor will be closed by close()."""
         return self._closefd
 
     @property
     def mode(self):
-        """String giving the file mode"""
         if self._created:
             if self._readable:
                 return 'xb+'
@@ -363,5 +352,3 @@ class FileIO(RawIOBase):
                 return 'rb'
         else:
             return 'wb'
-
-
