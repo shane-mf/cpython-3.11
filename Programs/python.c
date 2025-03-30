@@ -12,7 +12,7 @@ wmain(int argc, wchar_t **argv)
 int
 main(int argc, char **argv)
 {
-    printf("Hello, Mf!\n");
+    printf("Hello, Mf! this is main(int argc, char **argv) in python.c\n");
     return Py_BytesMain(argc, argv);
 }
 #endif

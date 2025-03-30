@@ -233,14 +233,22 @@ def open(file, mode="r", buffering=-1, encoding=None, errors=None,
                       "mode, the default buffer size will be used",
                       RuntimeWarning, 2)
     logger.debug(f"open: {file}")
-    # raw = _mf_io.FileIO(file,
-    raw = FileIO(file,
-                 (creating and "x" or "") +
-                 (reading and "r" or "") +
-                 (writing and "w" or "") +
-                 (appending and "a" or "") +
-                 (updating and "+" or ""),
-                 closefd, opener=opener)
+    if file in [0, 1, 2]:
+        raw = FileIO(file,
+                    (creating and "x" or "") +
+                    (reading and "r" or "") +
+                    (writing and "w" or "") +
+                    (appending and "a" or "") +
+                    (updating and "+" or ""),
+                    closefd, opener=opener)
+    else:
+        raw = _mf_io.FileIO(file,
+                    (creating and "x" or "") +
+                    (reading and "r" or "") +
+                    (writing and "w" or "") +
+                    (appending and "a" or "") +
+                    (updating and "+" or ""),
+                    closefd, opener=opener)
     result = raw
     try:
         line_buffering = False

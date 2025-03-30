@@ -28,6 +28,7 @@ _path_to_fd_map: dict[str, int] = {}
 _fd_to_file_info_map: dict[int, _FileInfo] = {}
 
 def mf_opener(path: str, flags: int, mode: int):
+    # raise OSError(12347, f"mf_opener: {path}")
     global _cur_fd
     if path not in _path_to_fd_map:
         _cur_fd += 1
@@ -47,6 +48,10 @@ def mf_set_inheritable(fd: int, inheritable: bool):
 
 def mf_fstat(fd: int):
     logger.debug(f"TODO: fstat: {fd}")
+    # if fd == 0:
+    #     # 程序启动时，会lsstat fd:0 ?
+    #     return os.stat(fd)
+    # raise OSError(errno.EBADF, f"mf_opener: {_cur_fd} {_fd_to_file_info_map}")
     return _fd_to_file_info_map[fd]
 
 def mf_lseek(fd: int, pos: int, whence: int) -> int:
@@ -151,6 +156,7 @@ class FileIO(RawIOBase):
         flags |= noinherit_flag
 
         owned_fd = None
+        # raise OSError(errno.EBADF, f"FileIO.__init__:{file}")
         try:
             if fd < 0:
                 if not closefd:
@@ -195,6 +201,7 @@ class FileIO(RawIOBase):
                 mf_close(owned_fd)
             raise
         self._fd = fd
+        # raise OSError(errno.EBADF, f"FileIO.__init__:{file}")
 
     def __del__(self):
         if self._fd >= 0 and self._closefd and not self.closed:
