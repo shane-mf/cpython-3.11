@@ -12,7 +12,7 @@ import sys
 from _thread import allocate_lock as Lock
 
 from mf_customs import logger
-from _mf_io import mf_open
+import _mf_io
 if sys.platform in {'win32', 'cygwin'}:
     from msvcrt import setmode as _setmode
 else:
@@ -234,7 +234,7 @@ def open(file, mode="r", buffering=-1, encoding=None, errors=None,
         warnings.warn("line buffering (buffering=1) isn't supported in binary "
                       "mode, the default buffer size will be used",
                       RuntimeWarning, 2)
-    raw = FileIO(file,
+    raw = _mf_io.FileIO(file,
                  (creating and "x" or "") +
                  (reading and "r" or "") +
                  (writing and "w" or "") +
@@ -279,10 +279,6 @@ def open(file, mode="r", buffering=-1, encoding=None, errors=None,
         text.mode = mode
 
         logger.debug(f"open {file}")
-        import traceback
-        logger.debug("Call stack:")
-        for frame in traceback.extract_stack():
-            logger.debug(f"  File \"{frame.filename}\", line {frame.lineno}, in {frame.name}")
 
         return result
     except:
@@ -1501,6 +1497,7 @@ class BufferedRandom(BufferedWriter, BufferedReader):
         return BufferedWriter.write(self, b)
 
 
+# todo: shadow this FileIO from outside usage?
 class FileIO(RawIOBase):
     _fd = -1
     _created = False
@@ -1527,7 +1524,7 @@ class FileIO(RawIOBase):
             import warnings
             warnings.warn('custom opener is not supported', ResourceWarning,
                           stacklevel=2, source=self)
-        # opener = mf_open
+        # opener = _mf_io.mf_opener
 
         if self._fd >= 0:
             # Have to close the existing file first.

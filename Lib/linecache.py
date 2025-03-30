@@ -41,6 +41,7 @@ def getlines(filename, module_globals=None):
         entry = cache[filename]
         if len(entry) != 1:
             return cache[filename][2]
+    # return []
 
     try:
         return updatecache(filename, module_globals)
@@ -88,6 +89,8 @@ def updatecache(filename, module_globals=None):
     if not filename or (filename.startswith('<') and filename.endswith('>')):
         return []
 
+    # fixme: @shane
+    return []
     fullname = filename
     try:
         stat = os.stat(fullname)

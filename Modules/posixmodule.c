@@ -9333,6 +9333,7 @@ dir_fd may not be implemented on your platform.
   If it is unavailable, using it will raise a NotImplementedError.
 [clinic start generated code]*/
 
+// todo @shane here
 static int
 os_open_impl(PyObject *module, path_t *path, int flags, int mode, int dir_fd)
 /*[clinic end generated code: output=abc7227888c8bc73 input=ad8623b29acd2934]*/

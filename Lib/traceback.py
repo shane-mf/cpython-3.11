@@ -225,7 +225,8 @@ def extract_stack(f=None, limit=None):
     """
     if f is None:
         f = sys._getframe().f_back
-    stack = StackSummary.extract(walk_stack(f), limit=limit)
+        stack = walk_stack(f)
+    stack = StackSummary.extract(stack, limit=limit)
     stack.reverse()
     return stack
 
@@ -387,8 +388,9 @@ class StackSummary(list):
             for f, lineno in frame_gen:
                 yield f, (lineno, None, None, None)
 
+        frame = extended_frame_gen()
         return klass._extract_from_extended_frame_gen(
-            extended_frame_gen(), limit=limit, lookup_lines=lookup_lines,
+            frame, limit=limit, lookup_lines=lookup_lines,
             capture_locals=capture_locals)
 
     @classmethod
@@ -422,9 +424,10 @@ class StackSummary(list):
                 f_locals = f.f_locals
             else:
                 f_locals = None
-            result.append(FrameSummary(
+            frame_summary = FrameSummary(
                 filename, lineno, name, lookup_line=False, locals=f_locals,
-                end_lineno=end_lineno, colno=colno, end_colno=end_colno))
+                end_lineno=end_lineno, colno=colno, end_colno=end_colno)
+            result.append(frame_summary)
         for filename in fnames:
             linecache.checkcache(filename)
         # If immediate lookup was desired, trigger lookups now.
