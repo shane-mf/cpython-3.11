@@ -12,7 +12,7 @@ import sys
 from _thread import allocate_lock as Lock
 
 from mf_customs import logger
-from mf_customs.io import mf_open
+from _mf_io import mf_open
 if sys.platform in {'win32', 'cygwin'}:
     from msvcrt import setmode as _setmode
 else:
@@ -1527,7 +1527,7 @@ class FileIO(RawIOBase):
             import warnings
             warnings.warn('custom opener is not supported', ResourceWarning,
                           stacklevel=2, source=self)
-        opener = mf_open
+        # opener = mf_open
 
         if self._fd >= 0:
             # Have to close the existing file first.
