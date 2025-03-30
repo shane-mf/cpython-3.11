@@ -232,6 +232,7 @@ def open(file, mode="r", buffering=-1, encoding=None, errors=None,
         warnings.warn("line buffering (buffering=1) isn't supported in binary "
                       "mode, the default buffer size will be used",
                       RuntimeWarning, 2)
+    logger.debug(f"open: {file}")
     raw = _mf_io.FileIO(file,
                  (creating and "x" or "") +
                  (reading and "r" or "") +
