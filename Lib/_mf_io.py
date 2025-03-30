@@ -41,7 +41,13 @@ def mf_opener(path: str, flags: int, mode: int):
     return _cur_fd
 
 def mf_close(fd: int):
-    del _fd_to_file_info_map[fd]
+    # fixme
+    pass
+    # print(f"todo: mf_close: {fd}")
+    # if fd in _fd_to_file_info_map:
+    #     del _fd_to_file_info_map[fd]
+    # else:
+    #     print(f"mf_close: {fd} not found")
 
 def mf_set_inheritable(fd: int, inheritable: bool):
     logger.debug(f"TODO: set_inheritable: {fd}, {inheritable}")
